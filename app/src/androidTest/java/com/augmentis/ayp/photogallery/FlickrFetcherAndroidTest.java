@@ -1,6 +1,5 @@
 package com.augmentis.ayp.photogallery;
 
-import android.net.Uri;
 import android.support.test.filters.SmallTest;
 import android.support.test.runner.AndroidJUnit4;
 
@@ -10,8 +9,8 @@ import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import static org.hamcrest.CoreMatchers.*;
+
 import static org.junit.Assert.*;
 
 /**

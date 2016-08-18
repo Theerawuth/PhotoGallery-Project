@@ -2,12 +2,9 @@ package com.augmentis.ayp.photogallery;
 
 import android.net.Uri;
 import android.util.Log;
-import android.widget.EditText;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +21,7 @@ public class FlickrFetcher {
     private static final String API_KEY = "f0c6703100a0b1e270ee958a32a0e09c";
     private static final String FLICKR_URL = "https://api.flickr.com/services/rest/";
 
+    // method : use download
     public byte[] getUrlBytes(String urlSpec) throws IOException {
         URL url = new URL(urlSpec);
 
@@ -65,7 +63,7 @@ public class FlickrFetcher {
         String jsonString = null;
 
         try {
-            String url = Uri.parse(FLICKR_URL).buildUpon()
+            String url = Uri.parse(FLICKR_URL).buildUpon() //Uri ไว้แปลงพวก PathFile
                     .appendQueryParameter("method", "flickr.photos.getRecent")
                     .appendQueryParameter("api_key", API_KEY)
                     .appendQueryParameter("format", "json")
