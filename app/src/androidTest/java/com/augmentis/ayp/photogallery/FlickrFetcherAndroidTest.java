@@ -2,6 +2,7 @@ package com.augmentis.ayp.photogallery;
 
 import android.support.test.filters.SmallTest;
 import android.support.test.runner.AndroidJUnit4;
+import android.util.Log;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -20,6 +21,7 @@ import static org.junit.Assert.*;
 @SmallTest
 public class FlickrFetcherAndroidTest {
 
+    private static final String TAG = "FlickrFetcherAndroidTest";
     private FlickrFetcher mFlickrFetcher;
 
     @Before
@@ -38,10 +40,31 @@ public class FlickrFetcherAndroidTest {
     }
 
     @Test
-    public void testFetch() throws Exception {
+    public void testFetchList() throws Exception {
         List<GalleryItem> galleryItemList = new ArrayList<>();
-        mFlickrFetcher.fetchItems(galleryItemList);
+        mFlickrFetcher.getRecentPhotos(galleryItemList);
 
         assertThat(galleryItemList.size(), is(100));
     }
+
+    @Test
+    public void testSearch() throws Exception {
+        List<GalleryItem> galleryItemList = new ArrayList<>();
+        mFlickrFetcher.searchPhotos(galleryItemList, "bird");
+
+//        Log.d(TAG, "TestSearch : size = " + galleryItemList.size());
+        assertThat(galleryItemList.size(), not(0));
+    }
+
+    @Test
+    public void testGetRecent() throws Exception {
+        List<GalleryItem> galleryItemList = new ArrayList<>();
+        mFlickrFetcher.getRecentPhotos(galleryItemList);
+
+        assertThat(galleryItemList.size(), not(0));
+    }
+
+
+
+
 }
