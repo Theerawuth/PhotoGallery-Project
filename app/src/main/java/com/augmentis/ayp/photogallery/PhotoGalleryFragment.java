@@ -1,8 +1,10 @@
 package com.augmentis.ayp.photogallery;
 
+import android.app.Dialog;
 import android.app.SearchManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
@@ -11,10 +13,13 @@ import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.content.FileProvider;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.util.LruCache;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
@@ -27,6 +32,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -172,17 +178,63 @@ public class PhotoGalleryFragment extends Fragment {
     }
 
 
-    class PhotoHolder extends RecyclerView.ViewHolder {
+    class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
         ImageView mPhoto;
+        String mBigUrl;
 
         public PhotoHolder(View itemView){
             super(itemView);
 
             mPhoto = (ImageView) itemView.findViewById(R.id.image_photo);
+            mPhoto.setOnClickListener(this);
         }
 
         public void bindDrawable(@NonNull Drawable drawable) {
             mPhoto.setImageDrawable(drawable);
+
+        }
+
+        public void setBigUrl(String bigUrl){
+            mBigUrl = bigUrl;
+        }
+
+        @Override
+        public void onClick(View view) {
+            Snackbar.make(mRecyclerView, "Clicked on Photo", Snackbar.LENGTH_SHORT).show();
+
+            final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+            final ImageView imgView = new ImageView(getActivity());
+
+            imgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            builder.setView(imgView);
+            builder.setPositiveButton("Close", null);
+
+            // Excute Async Task
+            new AsyncTask<String, Void, Bitmap>() {
+                @Override
+                protected Bitmap doInBackground(String... urls) {
+                    FlickrFetcher flickrFetcher = new FlickrFetcher();
+                    Bitmap bm = null;
+                    try {
+                        byte[] bytes = flickrFetcher.getUrlBytes(urls[0]);
+                        bm = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    }catch (IOException ioe){
+                        Log.d(TAG, "error in reading Bitmap");
+                        return null;
+                    }
+                    return bm;
+                }
+
+                @Override
+                protected void onPostExecute(Bitmap img) {
+                    ImageViewDialog imageViewDialog = ImageViewDialog.getInstance(img);
+                    FragmentManager fragmentManager = getFragmentManager();
+
+                    imageViewDialog.show(fragmentManager,"NACK_KUY");
+
+                }
+            }.execute(mBigUrl);
 
         }
     }
@@ -210,6 +262,7 @@ public class PhotoGalleryFragment extends Fragment {
 
             Log.d(TAG, "bind position #" + position + ", url: " + galleryItem.getUrl());
 
+            holder.setBigUrl(galleryItem.getBigSizeUrl());
             holder.bindDrawable(jpgDrawable);
 
             //
@@ -318,5 +371,37 @@ public class PhotoGalleryFragment extends Fragment {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public static class ImageViewDialog extends DialogFragment{
+
+    private static final String ARG_BITMAP = "ARG BITMAP";
+
+    public static ImageViewDialog getInstance(Bitmap bitmap) {
+
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(ARG_BITMAP, bitmap);
+
+        ImageViewDialog dialogFragment = new ImageViewDialog();
+        dialogFragment.setArguments(bundle);
+        return dialogFragment;
+    }
+
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(Bundle savedInstanceState) {
+        Bitmap bmp = getArguments().getParcelable(ARG_BITMAP);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+        ImageView imgView = new ImageView(getActivity());
+        imgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        imgView.setImageDrawable(new BitmapDrawable(getResources(), bmp));
+
+        builder.setView(imgView);
+        builder.setPositiveButton("Close", null);
+        return builder.create();
+
+        }
     }
 }

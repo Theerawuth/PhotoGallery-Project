@@ -62,6 +62,7 @@ public class FlickrFetcherAndroidTest {
         mFlickrFetcher.getRecentPhotos(galleryItemList);
 
         assertThat(galleryItemList.size(), not(0));
+        assertThat(galleryItemList.get(0).getBigSizeUrl(), notNullValue());
     }
 
 

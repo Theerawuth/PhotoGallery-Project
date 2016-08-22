@@ -10,6 +10,7 @@ public class GalleryItem {
     private String mId;
     private String mTitle;
     private String mUrl;
+    private String mBigSizeUrl;
 
     public static void printHello(){
         System.out.println("Hello");
@@ -36,12 +37,14 @@ public class GalleryItem {
     }
 
     public String getUrl() {
+
         return mUrl;
     }
 
 
 
     public String getName() {
+
         return getTitle();
     }
 
@@ -59,5 +62,13 @@ public class GalleryItem {
             }
 
         return false;
+    }
+
+    public void setBigSizeUrl(String bigSizeUrl) {
+        mBigSizeUrl = bigSizeUrl;
+    }
+
+    public String getBigSizeUrl() {
+        return mBigSizeUrl;
     }
 }
