@@ -10,6 +10,7 @@ import android.preference.PreferenceManager;
 public class PhotoGalleryPreference {
     private static final String TAG = "PhotoGalleryPref";
     private static final String PREF_SEARCH_KEY = "PhotoGalleryPref";
+    private static final String PREF_LAST_RESULT_ID = "lastResultId";
 
     public static String getStoredSearchKey(Context context) {
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
@@ -20,6 +21,17 @@ public class PhotoGalleryPreference {
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
         pref.edit()
                 .putString(PREF_SEARCH_KEY, key)
+                .apply();
+    }
+
+    public static String getLastResultId(Context context) {
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
+        return pref.getString(PREF_LAST_RESULT_ID, null);
+    }
+    public static void setStoreLastId(Context context, String lastId) {
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
+        pref.edit()
+                .putString(PREF_LAST_RESULT_ID, lastId)
                 .apply();
     }
 }

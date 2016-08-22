@@ -2,6 +2,7 @@ package com.augmentis.ayp.photogallery;
 
 import android.app.Dialog;
 import android.app.SearchManager;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -260,10 +261,11 @@ public class PhotoGalleryFragment extends Fragment {
                     ResourcesCompat.getDrawable(getResources(), R.drawable.photo, null);
             GalleryItem galleryItem = mGalleryItemList.get(position);
 
-            Log.d(TAG, "bind position #" + position + ", url: " + galleryItem.getUrl());
+//            Log.d(TAG, "bind position #" + position + ", url: " + galleryItem.getUrl());
 
             holder.setBigUrl(galleryItem.getBigSizeUrl());
             holder.bindDrawable(jpgDrawable);
+
 
             //
             mThumbnailDownloaderThread.queueThumbnailDownloader(holder, galleryItem.getUrl());
@@ -306,7 +308,6 @@ public class PhotoGalleryFragment extends Fragment {
                     running = false;
                 }
             }
-
         }
 
         @Override
@@ -355,6 +356,14 @@ public class PhotoGalleryFragment extends Fragment {
                 searchView.setQuery(mSearchKey, false);
             }
         });
+
+        // render polling
+        MenuItem mnuPolling = menu.findItem(R.id.menu_toggle_polling);
+        if(PollService.isServiceAlarmOn(getActivity())){
+            mnuPolling.setTitle(R.string.stop_polling);
+        } else {
+            mnuPolling.setTitle(R.string.start_polling);
+        }
     }
 
     @Override
@@ -366,6 +375,12 @@ public class PhotoGalleryFragment extends Fragment {
             case R.id.menu_clear_search:
                 mSearchKey = null;
                 loadPhotos();
+                return true;
+            case R.id.menu_toggle_polling:
+                boolean shouldStart = !PollService.isServiceAlarmOn(getActivity());
+                Log.d(TAG, ((shouldStart) ? "Start" : "Stop") + "Intent service");
+                PollService.setServiceAlarm(getActivity(), shouldStart);
+                getActivity().invalidateOptionsMenu(); //refresh menu
                 return true;
 
         }

@@ -49,7 +49,7 @@ public class ThumbnailDownloader<T> extends HandlerThread {
                 if(msg.what == DOWNLOAD_FILE){
                     T target = (T) msg.obj;
                     String url = mRequestUrlMap.get(target);
-                    Log.i(TAG, "Got Message from queue pls download this URL " + url);
+//                    Log.i(TAG, "Got Message from queue pls download this URL " + url);
                     handleRequestDownload(target,url);
                 }
             }
@@ -83,14 +83,14 @@ public class ThumbnailDownloader<T> extends HandlerThread {
             });
 
 
-            Log.i(TAG, "Bitmap URL downloaded: ");
+//            Log.i(TAG, "Bitmap URL downloaded: ");
         }catch (IOException e){
             Log.e(TAG, "Error downloading : ", e);
         }
     }
 
     public void queueThumbnailDownloader(T target, String url){
-        Log.d(TAG, "Gor url : " + url);
+//        Log.d(TAG, "Gor url : " + url);
 
         if( null == url ){
             mRequestUrlMap.remove(target);
