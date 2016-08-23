@@ -22,4 +22,11 @@
         android:title="@string/start_polling"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/menu_manual_check"
+        android:title="@string/manual_check"
+        android:showAsAction="never">
+
+    </item>
+
 </menu>

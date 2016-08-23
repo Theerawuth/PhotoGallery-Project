@@ -83,14 +83,16 @@ public class ThumbnailDownloader<T> extends HandlerThread {
             });
 
 
-//            Log.i(TAG, "Bitmap URL downloaded: ");
+            Log.i(TAG, "Bitmap URL downloaded: ");
         }catch (IOException e){
             Log.e(TAG, "Error downloading : ", e);
         }
     }
 
+
+    //เป็น Map ที่เก็บตัว URL กับ TARGET
     public void queueThumbnailDownloader(T target, String url){
-//        Log.d(TAG, "Gor url : " + url);
+        Log.d(TAG, "Gor url : " + url);
 
         if( null == url ){
             mRequestUrlMap.remove(target);
