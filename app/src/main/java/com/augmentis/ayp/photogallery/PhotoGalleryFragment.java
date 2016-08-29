@@ -191,7 +191,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
             MenuItem.OnMenuItemClickListener
     {
         ImageView mPhoto;
-        String mBigUrl;
+        GalleryItem mGalleryItem;
 
         public PhotoHolder(View itemView){
             super(itemView);
@@ -208,8 +208,8 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
         }
 
-        public void setBigUrl(String bigUrl){
-            mBigUrl = bigUrl;
+        public void bindGalleryItem(GalleryItem galleryItem){
+            mGalleryItem = galleryItem;
         }
 
         @Override
@@ -248,21 +248,37 @@ public class PhotoGalleryFragment extends VisibleFragment {
                     imageViewDialog.show(fragmentManager,"NACK_KUY");
 
                 }
-            }.execute(mBigUrl);
+            }.execute(mGalleryItem.getBigSizeUrl());
         }
 
         @Override
         public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
-            MenuItem menuItem = menu.add(R.string.open_by_url);
-            menu.setHeaderTitle(mBigUrl);
+            menu.setHeaderTitle(mGalleryItem.getPhotoUri().toString());
             menu.setHeaderIcon(android.R.drawable.ic_dialog_alert);
+
+            MenuItem menuItem = menu.add(0, 1, 0, R.string.open_with_external_browser);
             menuItem.setOnMenuItemClickListener(this);
+            MenuItem menuItem2 = menu.add(0,2, 0, R.string.open_in_app_browser);
+            menuItem2.setOnMenuItemClickListener(this);
         }
 
         @Override
         public boolean onMenuItemClick(MenuItem item) {
-            Toast.makeText(getActivity(), "Url : = " + mBigUrl, Toast.LENGTH_LONG).show();
-            return true;
+            switch (item.getItemId()){
+                case 1 :
+                Intent i = new Intent(Intent.ACTION_VIEW, mGalleryItem.getPhotoUri());
+                startActivity(i); // call external browser by implicit intent
+                return true;
+
+                case 2 :
+                    Intent i2 = PhotoPageActivity.newIntent(getActivity(), mGalleryItem.getPhotoUri());
+                    startActivity(i2); // call internal activity by explicit intent
+                    return true;
+
+                default:
+            }
+
+            return false;
         }
     }
 
@@ -289,7 +305,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
 
 //            Log.d(TAG, "bind position #" + position + ", url: " + galleryItem.getUrl());
 
-            holder.setBigUrl(galleryItem.getBigSizeUrl());
+            holder.bindGalleryItem(galleryItem);
             holder.bindDrawable(jpgDrawable);
 
 

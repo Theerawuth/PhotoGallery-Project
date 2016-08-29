@@ -63,6 +63,7 @@ public class FlickrFetcherAndroidTest {
 
         assertThat(galleryItemList.size(), not(0));
         assertThat(galleryItemList.get(0).getBigSizeUrl(), notNullValue());
+        assertThat(galleryItemList.get(0).getmOwner(), notNullValue());
     }
 
 

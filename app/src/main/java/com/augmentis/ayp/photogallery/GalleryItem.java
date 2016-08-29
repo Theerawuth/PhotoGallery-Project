@@ -1,5 +1,7 @@
 package com.augmentis.ayp.photogallery;
 
+import android.net.Uri;
+
 import java.util.Objects;
 
 /**
@@ -11,6 +13,7 @@ public class GalleryItem {
     private String mTitle;
     private String mUrl;
     private String mBigSizeUrl;
+    private String mOwner;
 
     public static void printHello(){
         System.out.println("Hello");
@@ -71,4 +74,24 @@ public class GalleryItem {
     public String getBigSizeUrl() {
         return mBigSizeUrl;
     }
+
+    public void setOwner(String owner) {
+        mOwner = owner;
+    }
+
+    public String getmOwner() {
+        return mOwner;
+    }
+                                                    //"https://www.flickr.com/photos/45101143@N07/29016401600"
+                                                    //url path///////////////////////segment/////////////////
+    private static final String PHOTO_URL_PREFIX = "https://www.flickr.com/photos/";
+
+    public Uri getPhotoUri(){
+        return Uri.parse(PHOTO_URL_PREFIX).buildUpon() // Return builder
+                .appendPath(mOwner)
+                .appendPath(mId)
+                .build(); //Return Uri
+
+    }
+
 }

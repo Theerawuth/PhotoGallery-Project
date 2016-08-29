@@ -18,12 +18,16 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".PhotoGalleryActivity">
+
+        <activity android:name=".PhotoGalleryActivity"
+            android:parentActivityName=".PhotoGalleryActivity">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
 
         <!-- Poll Service -->
@@ -52,6 +56,11 @@
             </intent-filter>
 
         </receiver>
+
+        <activity android:name=".PhotoPageActivity"
+            android:label="@string/in_app_browser"
+            android:parentActivityName=".PhotoGalleryActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize"/> //แก้ไม่ให้มันเรนเดอร์ใหม่เวลาพลิกหน้าจอ
     </application>
 
 </manifest>
