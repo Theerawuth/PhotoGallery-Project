@@ -10,4 +10,8 @@
     <string name="new_picture_title">New Picture!!</string>
     <string name="new_picture_content">Create new picture</string>
     <string name="manual_check">Manual Check</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="open_by_url">Open By Url</string>
 </resources>

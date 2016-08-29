@@ -1,5 +1,6 @@
 package com.augmentis.ayp.photogallery;
 
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.IntentService;
 import android.app.Notification;
@@ -8,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.net.ConnectivityManager;
+import android.os.Build;
 import android.os.SystemClock;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v7.app.NotificationCompat;
@@ -25,6 +27,14 @@ public class PollService extends IntentService {
 
     private static final int POLL_INTERVAL = 100 * 60; //60 sec
 
+    // public broadcast name for this action
+    public static final String ACTION_SHOW_NOTIFICATION = "com.augmentis.ayp.photogallery.ACTION_SHOW_NOTIFICATION";
+
+    public static final String PERMISSION_SHOW_NOTIF = "com.augmentis.ayp.photogallery.RECEIVER_SHOW_NOTIFICATION";
+
+    public static final String REQUEST_CODE = "REQUEST_CODE_INTENT";
+    public static final String NOTIFICATION = "NOTIFICATION_INTENT";
+
     public static Intent newIntent(Context context){
         return new Intent(context, PollService.class);
     }
@@ -35,16 +45,18 @@ public class PollService extends IntentService {
 
         AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
 
-        if(isOn) {
-            //AlarmManager.RTC ->> System.currentTimeMillis();
-            am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME,   // param 1 : Mode
-                    SystemClock.elapsedRealtime(),                  // param 2 : Start
-                    POLL_INTERVAL,                                  // param 3 : Interval
-                    pi);                                            // param 4 : Pending action (intent)
-        }else {
-            am.cancel(pi); // Cancel interval call
-            pi.cancel();   // Cancel Pending intent call
+        if(isOn){
+            //AlarmManager.RTC --- > System.currentTimeMillis();
+            am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME,       // param 1 : Mode
+                    SystemClock.elapsedRealtime(),                      // param 2 : Start time elapsed เป็นตัวSystemClock ของตัวAndroid
+                    POLL_INTERVAL,                                      // param 3 : Interval ระยะห่าง ระยะเวลา
+                    pi);                                                // param 4 : Pending action(intent)
+        }else{
+            am.cancel(pi);                                              // cancel interval call
+            pi.cancel();                                                // cancel Pending intent call
         }
+
+        PhotoGalleryPreference.setStoredIsAlarmOn(c ,isOn);
     }
 
     public static boolean isServiceAlarmOn(Context ctx){
@@ -108,12 +120,27 @@ public class PollService extends IntentService {
 
             Notification notification = notiBuilder.build(); //  << Build notification from builder
 
-            // Get notification manager from context
-            NotificationManagerCompat nm = NotificationManagerCompat.from(this);
-            nm.notify(Long.valueOf(newestId).intValue(), notification); //call notification
+//            // Get notification manager from context
+//            NotificationManagerCompat nm = NotificationManagerCompat.from(this);
+//            nm.notify(0, notification); //call notification
+
+//            new Screen().on(this);
+
+            sendBackgroundNotification(0, notification);
         }
 
         PhotoGalleryPreference.setStoreLastId(this, newestId);
+    }
+
+    private void sendBackgroundNotification(int requestCode, Notification notification){
+        Intent intent = new Intent(ACTION_SHOW_NOTIFICATION);
+        intent.putExtra(REQUEST_CODE, requestCode);
+        intent.putExtra(NOTIFICATION, notification);
+
+        sendOrderedBroadcast(intent, PERMISSION_SHOW_NOTIF,
+                null, null,
+                Activity.RESULT_OK,
+                null, null);
     }
 
     private boolean isNetworkAvailableAndConnected() {

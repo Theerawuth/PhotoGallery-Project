@@ -25,6 +25,7 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.util.Log;
+import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -32,6 +33,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,7 +44,7 @@ import java.util.List;
  */
 
 
-public class PhotoGalleryFragment extends Fragment {
+public class PhotoGalleryFragment extends VisibleFragment {
 
     private static final String TAG = "PhotoGalleryFragment";
 
@@ -72,6 +74,10 @@ public class PhotoGalleryFragment extends Fragment {
 
         setRetainInstance(true);
         setHasOptionsMenu(true);
+
+        Intent i = PollService.newIntent(getActivity());
+        getActivity().startService(i);
+        PollService.setServiceAlarm(getContext(), true);
 
         mMemoryCache = new LruCache<String, Bitmap>(cacheSize){
             @Override
@@ -179,7 +185,11 @@ public class PhotoGalleryFragment extends Fragment {
     }
 
 
-    class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+    class PhotoHolder extends RecyclerView.ViewHolder implements
+            View.OnClickListener,
+            View.OnCreateContextMenuListener,
+            MenuItem.OnMenuItemClickListener
+    {
         ImageView mPhoto;
         String mBigUrl;
 
@@ -188,6 +198,9 @@ public class PhotoGalleryFragment extends Fragment {
 
             mPhoto = (ImageView) itemView.findViewById(R.id.image_photo);
             mPhoto.setOnClickListener(this);
+
+            itemView.setOnCreateContextMenuListener(this);
+
         }
 
         public void bindDrawable(@NonNull Drawable drawable) {
@@ -236,7 +249,20 @@ public class PhotoGalleryFragment extends Fragment {
 
                 }
             }.execute(mBigUrl);
+        }
 
+        @Override
+        public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+            MenuItem menuItem = menu.add(R.string.open_by_url);
+            menu.setHeaderTitle(mBigUrl);
+            menu.setHeaderIcon(android.R.drawable.ic_dialog_alert);
+            menuItem.setOnMenuItemClickListener(this);
+        }
+
+        @Override
+        public boolean onMenuItemClick(MenuItem item) {
+            Toast.makeText(getActivity(), "Url : = " + mBigUrl, Toast.LENGTH_LONG).show();
+            return true;
         }
     }
 
@@ -268,6 +294,7 @@ public class PhotoGalleryFragment extends Fragment {
 
 
             //
+            mThumbnailDownloaderThread.queueThumbnailDownloader(holder, galleryItem.getUrl());
             mThumbnailDownloaderThread.queueThumbnailDownloader(holder, galleryItem.getUrl());
         }
 
