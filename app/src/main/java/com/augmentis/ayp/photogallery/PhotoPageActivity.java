@@ -6,11 +6,12 @@ import android.net.Uri;
 import android.support.v4.app.Fragment;
 
 /**
- * Created by Theerawuth on 8/29/2016.
+ * Created by theerawuth on 29-Aug-16.
  */
+
 public class PhotoPageActivity extends SingleFragmentActivity {
 
-    public static Intent newIntent(Context context, Uri uri){
+    public static Intent newIntent(Context context, Uri uri) {
         Intent intent = new Intent(context, PhotoPageActivity.class);
         intent.setData(uri);
         return intent;
@@ -19,7 +20,6 @@ public class PhotoPageActivity extends SingleFragmentActivity {
     @Override
     protected Fragment onCreateFragment() {
         Uri uri = getIntent().getData();
-
         return PhotoPageFragment.newInstance(uri);
     }
 }

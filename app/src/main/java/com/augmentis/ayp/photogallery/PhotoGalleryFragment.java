@@ -1,26 +1,23 @@
 package com.augmentis.ayp.photogallery;
 
-import android.app.Dialog;
-import android.app.SearchManager;
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.content.FileProvider;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.util.LruCache;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
@@ -35,29 +32,24 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import java.io.IOException;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationAvailability;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.model.LatLng;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by Theerawuth on 8/16/2016.
+ * Created by wind on 8/16/2016 AD.
  */
-
-
 public class PhotoGalleryFragment extends VisibleFragment {
 
     private static final String TAG = "PhotoGalleryFragment";
-
-    private RecyclerView mRecyclerView;
-    private PhotoGalleryAdapter mAdapter;
-    private ThumbnailDownloader<PhotoHolder> mThumbnailDownloaderThread;
-    private FetcherTask mFetcherTask;
-    private LruCache<String, Bitmap> mMemoryCache;
-    private String mSearchKey;
-    final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024) ;
-    final int cacheSize = maxMemory / 8;
-
-    //Step 1: Create << newInstance for Calling Fragment, onCreate, onCreateView for set XML.///////
 
     public static PhotoGalleryFragment newInstance() {
 
@@ -68,35 +60,89 @@ public class PhotoGalleryFragment extends VisibleFragment {
         return fragment;
     }
 
+    private RecyclerView mRecyclerView;
+    private List<GalleryItem> mItems;
+    private ThumbnailDownloader<PhotoHolder> mThumbnailDownloaderThread;
+    private FetcherTask mFetcherTask;
+    private String mSearchKey;
+    private Boolean mUseGPS;
+    private GoogleApiClient mGoogleApiClient;
+    private Location mLocation;
+
+    // Cache
+    private LruCache<String, Bitmap> mMemoryCache;
+    // Memory
+    final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+    // Use 1/8th of the available memory for this memory cache.
+    final int cacheSize = maxMemory / 8;
+
+    private static final int REQUEST_PERMISSION_LOCATION = 2928;
+
+    private GoogleApiClient.ConnectionCallbacks mConnectionCallbacks =
+            new GoogleApiClient.ConnectionCallbacks() {
+
+                @Override
+                @SuppressWarnings("all")
+                public void onConnected(@Nullable Bundle bundle) {
+                    Log.i(TAG, "Google API connected");
+                    mLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+                    Log.i(TAG, "Last location : " + mLocation);
+
+                    if(mUseGPS) {
+                        findLocation();
+                        loadPhotos();
+                    }
+                }
+
+                @Override
+                public void onConnectionSuspended(int i) {
+                    Log.i(TAG, "Google API suspended");
+                }
+            };
+
+    private LocationListener mLocationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            Log.d(TAG, "Got location + " + location.getLatitude() + "," + location.getLongitude());
+
+            mLocation = location;
+
+            if(mUseGPS) {
+                loadPhotos();
+            }
+
+            Toast.makeText(getActivity(), location.getLatitude() + "," + location.getLongitude(),
+                    Toast.LENGTH_LONG).show();
+        }
+    };
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setRetainInstance(true);
         setHasOptionsMenu(true);
+        setRetainInstance(true);
 
-        Intent i = PollService.newIntent(getActivity());
-        getActivity().startService(i);
-        PollService.setServiceAlarm(getContext(), true);
+        mUseGPS = PhotoGalleryPreference.getUseGPS(getActivity());
+        mSearchKey = PhotoGalleryPreference.getStoredSearchKey(getActivity());
 
-        mMemoryCache = new LruCache<String, Bitmap>(cacheSize){
+        Log.d(TAG, "Memory size = " + maxMemory + " K ");
+
+        mMemoryCache = new LruCache<String, Bitmap>(cacheSize) {
             @Override
             protected int sizeOf(String key, Bitmap bitmap) {
                 return bitmap.getByteCount() / 1024;
             }
         };
 
-        // Move from onCreateView
-        mFetcherTask = new FetcherTask(); //run another thread
-
+        // Move from onCreateView;
         Handler responseUIHandler = new Handler();
 
-        ThumbnailDownloader.ThumbnailDownloaderListener listener =
+        ThumbnailDownloader.ThumbnailDownloaderListener<PhotoHolder> listener =
                 new ThumbnailDownloader.ThumbnailDownloaderListener<PhotoHolder>() {
                     @Override
-                    public void onThumbnailDownloaderListener(PhotoHolder target, Bitmap thumbnail, String url) {
-                        if (mMemoryCache.get(url) == null)
-                        {
+                    public void onThumbnailDownloaded(PhotoHolder target, Bitmap thumbnail, String url) {
+                        if(null == mMemoryCache.get(url)) {
                             mMemoryCache.put(url, thumbnail);
                         }
 
@@ -106,32 +152,94 @@ public class PhotoGalleryFragment extends VisibleFragment {
                 };
 
         mThumbnailDownloaderThread = new ThumbnailDownloader<>(responseUIHandler);
-        mThumbnailDownloaderThread.setmThumbnailDownloaderListener(listener);
+        mThumbnailDownloaderThread.setThumbnailDownloaderListener(listener);
         mThumbnailDownloaderThread.start();
         mThumbnailDownloaderThread.getLooper();
+
+        mGoogleApiClient = new GoogleApiClient.Builder(getActivity())
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(mConnectionCallbacks)
+                .build();
 
         Log.i(TAG, "Start background thread");
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
-
-        mRecyclerView = (RecyclerView) v.findViewById(R.id.photo_gallery_recycler_view);
-        Resources r = getResources();
-        int gridSize = r.getInteger(R.integer.grid_size);
-
-        mRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), gridSize));
-
-        mSearchKey = PhotoGalleryPreference.getStoredSearchKey(getActivity());
-        loadPhotos();
-
-        Log.d(TAG, "On Create Complete - Loaded search key = " + mSearchKey);
-        return v;
+    private void findLocation() {
+        if(hasPermission()) {
+            requestLocation();
+        }
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+    private boolean hasPermission() {
+        int permissionStatus =
+                ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_FINE_LOCATION);
+
+        if(permissionStatus == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+
+        requestPermissions(
+                new String[] {
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                },
+                REQUEST_PERMISSION_LOCATION);
+
+        return false;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+
+        if(requestCode == REQUEST_PERMISSION_LOCATION) {
+            if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                requestLocation();
+            }
+        }
+    }
+
+    @SuppressWarnings("all")
+    private void requestLocation() {
+        if (GooglePlayServicesUtil.isGooglePlayServicesAvailable(getActivity())
+                == ConnectionResult.SUCCESS) {
+
+            LocationRequest request = LocationRequest.create();
+
+            request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+            request.setNumUpdates(50);
+            request.setInterval(1000);
+
+            LocationAvailability availability =
+                    LocationServices.FusedLocationApi.getLocationAvailability(mGoogleApiClient);
+
+            Log.d(TAG, "Location Available:" + availability.isLocationAvailable());
+
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,
+                    request, mLocationListener);
+        }
+    }
+
+    private void unFindLocation() {
+        if (mGoogleApiClient.isConnected()) {
+
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient,
+                    mLocationListener);
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        mGoogleApiClient.disconnect();
+    }
 
     @Override
     public void onDestroy() {
@@ -151,128 +259,207 @@ public class PhotoGalleryFragment extends VisibleFragment {
     @Override
     public void onPause() {
         super.onPause();
-
         PhotoGalleryPreference.setStoredSearchKey(getActivity(), mSearchKey);
+        unFindLocation();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-
         String searchKey = PhotoGalleryPreference.getStoredSearchKey(getActivity());
 
-        if(searchKey != null){
+        if(searchKey != null) {
             mSearchKey = searchKey;
         }
-        Log.d(TAG, "On Resume Complete");
+
+        mUseGPS = PhotoGalleryPreference.getUseGPS(getActivity());
+
+        if(!mUseGPS) {
+            loadPhotos();
+        }
+
+        Log.d(TAG, "On resume completed, mSearchKey = " + mSearchKey
+                + ", mUseGPS = " + mUseGPS);
     }
 
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
 
+        inflater.inflate(R.menu.menu_main, menu);
 
-    public void loadPhotos() {
-
-        if(!mFetcherTask.isRunning() || mFetcherTask == null){
-            mFetcherTask = new FetcherTask();
-
-            if(mSearchKey != null){
-                mFetcherTask.execute(mSearchKey);
+        MenuItem menuItem = menu.findItem(R.id.menu_search);
+        final SearchView searchView = (SearchView) menuItem.getActionView();
+        searchView.setQuery(mSearchKey, false);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                Log.d(TAG, "Query text submitted: " + query);
+                mSearchKey = query;
+                loadPhotos();
+                return true;
             }
-            else
-            {
-                mFetcherTask.execute();
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                Log.d(TAG, "Query text changing: " + newText);
+                return false;
             }
+        });
+
+        searchView.setOnSearchClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                searchView.setQuery(mSearchKey, false);
+            }
+        });
+
+        // render polling
+        MenuItem mnuPolling = menu.findItem(R.id.menu_toggle_polling);
+        if(PollService.isServiceAlarmOn(getActivity())) {
+            mnuPolling.setTitle(R.string.stop_polling);
+        } else {
+            mnuPolling.setTitle(R.string.start_polling);
         }
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.menu_reload:
+                loadPhotos();
+                return true;
+
+            case R.id.menu_toggle_polling:
+                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+                Log.d(TAG, ((shouldStartAlarm) ? "Start" : "Stop") + " Intent service" );
+                PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                getActivity().invalidateOptionsMenu(); // refresh menu
+                return true;
+
+            case R.id.menu_clear_search:
+                mSearchKey = null;
+                loadPhotos();
+                return true;
+
+            case R.id.menu_manual_check:
+                Intent pollIntent = PollService.newIntent(getActivity());
+                getActivity().startService(pollIntent);
+                return true;
+
+            case R.id.menu_setting:
+                Intent i = SettingActivity.newIntent(getActivity());
+                startActivity(i);
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
+
+        mRecyclerView = (RecyclerView) v.findViewById(R.id.photo_gallery_recycler_view);
+        Resources r = getResources();
+        int gridSize = r.getInteger(R.integer.grid_size);
+
+        mRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), gridSize));
+        mItems = new ArrayList<>();
+        mRecyclerView.setAdapter(new PhotoGalleryAdapter(mItems));
+
+        mSearchKey = PhotoGalleryPreference.getStoredSearchKey(getActivity());
+
+        Log.d(TAG, "On create completed - Loaded search key = " + mSearchKey);
+        return v;
+    }
+
+    private void loadPhotos() {
+        if(mFetcherTask == null) {
+            mFetcherTask = new FetcherTask();
+
+            if(mSearchKey != null) {
+                mFetcherTask.execute(mSearchKey);
+            } else {
+                mFetcherTask.execute(); // TODO
+            }
+        } else {
+            Log.d(TAG, "Fetch task is running now");
+        }
+    }
 
     class PhotoHolder extends RecyclerView.ViewHolder implements
             View.OnClickListener,
             View.OnCreateContextMenuListener,
-            MenuItem.OnMenuItemClickListener
-    {
+            MenuItem.OnMenuItemClickListener {
+
         ImageView mPhoto;
         GalleryItem mGalleryItem;
 
-        public PhotoHolder(View itemView){
+        public PhotoHolder(View itemView) {
             super(itemView);
 
             mPhoto = (ImageView) itemView.findViewById(R.id.image_photo);
             mPhoto.setOnClickListener(this);
 
             itemView.setOnCreateContextMenuListener(this);
-
         }
 
         public void bindDrawable(@NonNull Drawable drawable) {
             mPhoto.setImageDrawable(drawable);
-
         }
 
-        public void bindGalleryItem(GalleryItem galleryItem){
+        public void bindGalleryItem(GalleryItem galleryItem) {
             mGalleryItem = galleryItem;
         }
 
         @Override
         public void onClick(View view) {
-            Snackbar.make(mRecyclerView, "Clicked on Photo", Snackbar.LENGTH_SHORT).show();
-
-            final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-
-            final ImageView imgView = new ImageView(getActivity());
-
-            imgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            builder.setView(imgView);
-            builder.setPositiveButton("Close", null);
-
-            // Excute Async Task
-            new AsyncTask<String, Void, Bitmap>() {
-                @Override
-                protected Bitmap doInBackground(String... urls) {
-                    FlickrFetcher flickrFetcher = new FlickrFetcher();
-                    Bitmap bm = null;
-                    try {
-                        byte[] bytes = flickrFetcher.getUrlBytes(urls[0]);
-                        bm = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                    }catch (IOException ioe){
-                        Log.d(TAG, "error in reading Bitmap");
-                        return null;
-                    }
-                    return bm;
-                }
-
-                @Override
-                protected void onPostExecute(Bitmap img) {
-                    ImageViewDialog imageViewDialog = ImageViewDialog.getInstance(img);
-                    FragmentManager fragmentManager = getFragmentManager();
-
-                    imageViewDialog.show(fragmentManager,"NACK_KUY");
-
-                }
-            }.execute(mGalleryItem.getBigSizeUrl());
+            if(mGalleryItem.getBigSizeUrl() != null) {
+                Intent intent = ImageViewActivity.newIntent(getActivity(), mGalleryItem.getBigSizeUrl());
+                startActivity(intent);
+            } else {
+                Snackbar.make(view, R.string.no_photo_url, Snackbar.LENGTH_SHORT).show();
+            }
         }
 
         @Override
         public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
             menu.setHeaderTitle(mGalleryItem.getPhotoUri().toString());
-            menu.setHeaderIcon(android.R.drawable.ic_dialog_alert);
 
             MenuItem menuItem = menu.add(0, 1, 0, R.string.open_with_external_browser);
             menuItem.setOnMenuItemClickListener(this);
-            MenuItem menuItem2 = menu.add(0,2, 0, R.string.open_in_app_browser);
+            MenuItem menuItem2 = menu.add(0, 2, 0, R.string.open_in_app_browser);
             menuItem2.setOnMenuItemClickListener(this);
+            MenuItem menuItem3 = menu.add(0, 3, 0, R.string.open_in_map);
+            menuItem3.setOnMenuItemClickListener(this);
         }
 
         @Override
         public boolean onMenuItemClick(MenuItem item) {
-            switch (item.getItemId()){
-                case 1 :
-                Intent i = new Intent(Intent.ACTION_VIEW, mGalleryItem.getPhotoUri());
-                startActivity(i); // call external browser by implicit intent
-                return true;
+            switch (item.getItemId()) {
+                case 1:
+                    Intent i = new Intent(Intent.ACTION_VIEW, mGalleryItem.getPhotoUri());
+                    startActivity(i); // call external browser by implicit intent
+                    return true;
 
-                case 2 :
+                case 2:
                     Intent i2 = PhotoPageActivity.newIntent(getActivity(), mGalleryItem.getPhotoUri());
                     startActivity(i2); // call internal activity by explicit intent
+                    return true;
+
+                case 3:
+                    Location itemLoc = null;
+                    if(mGalleryItem.isGeoCorrect()) {
+                        itemLoc = new Location("");
+                        itemLoc.setLatitude(Double.valueOf(mGalleryItem.getLat()));
+                        itemLoc.setLongitude(Double.valueOf(mGalleryItem.getLon()));
+                    }
+
+                    Intent i3 = PhotoMapActivity.newIntent(getActivity(), mLocation, itemLoc,
+                            mGalleryItem.getUrl());
+                    startActivity(i3);
                     return true;
 
                 default:
@@ -289,29 +476,33 @@ public class PhotoGalleryFragment extends VisibleFragment {
         PhotoGalleryAdapter(List<GalleryItem> galleryItems) {
             mGalleryItemList = galleryItems;
         }
+
         @Override
         public PhotoHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(getActivity()).inflate(R.layout.item_photo, parent, false);
+            View v = LayoutInflater.from(getActivity()).inflate(
+                    R.layout.item_photo, parent, false);
 
             return new PhotoHolder(v);
         }
 
-        //use map or set picture
         @Override
         public void onBindViewHolder(PhotoHolder holder, int position) {
-            Drawable jpgDrawable =
+            Drawable smileyDrawable =
                     ResourcesCompat.getDrawable(getResources(), R.drawable.photo, null);
-            GalleryItem galleryItem = mGalleryItemList.get(position);
 
-//            Log.d(TAG, "bind position #" + position + ", url: " + galleryItem.getUrl());
+            GalleryItem galleryItem = mGalleryItemList.get(position);
+            Log.d(TAG, "bind position #" + position + ", url: " + galleryItem.getUrl());
 
             holder.bindGalleryItem(galleryItem);
-            holder.bindDrawable(jpgDrawable);
+            holder.bindDrawable(smileyDrawable);
 
-
-            //
-            mThumbnailDownloaderThread.queueThumbnailDownloader(holder, galleryItem.getUrl());
-            mThumbnailDownloaderThread.queueThumbnailDownloader(holder, galleryItem.getUrl());
+            if(mMemoryCache.get(galleryItem.getUrl()) != null) {
+                Bitmap bitmap = mMemoryCache.get(galleryItem.getUrl());
+                holder.bindDrawable(new BitmapDrawable(getResources(), bitmap));
+            } else {
+                //
+                mThumbnailDownloaderThread.queueThumbnailDownload(holder, galleryItem.getUrl());
+            }
         }
 
         @Override
@@ -319,152 +510,42 @@ public class PhotoGalleryFragment extends VisibleFragment {
             return mGalleryItemList.size();
         }
     }
-    boolean running = false;
-
 
     class FetcherTask extends AsyncTask<String, Void, List<GalleryItem>> {
-        private FlickrFetcher mFlickrFetcher;
-
-        boolean isRunning() {
-            return running;
-        }
 
         @Override
-        protected List<GalleryItem> doInBackground(String... param) {
+        protected List<GalleryItem> doInBackground(String ... params) {
+            Log.d(TAG, "Start fetcher task");
 
-            synchronized (this) {
-                running = true;
-            }
-            try{
-                List<GalleryItem> itemList = new ArrayList<>();
-                mFlickrFetcher = new FlickrFetcher();
-                if(param.length > 0) {
-                    mFlickrFetcher.searchPhotos(itemList, param[0]);
-                }
-                else{
-                    mFlickrFetcher.getRecentPhotos(itemList);
-                }
-                return itemList;
+            List<GalleryItem> itemList = new ArrayList<>();
+            FlickrFetcher flickrFetcher = new FlickrFetcher();
+            if(params.length > 0) {
 
-            }finally {
-                synchronized (this){
-                    running = false;
+                if(mUseGPS && mLocation != null) {
+                    flickrFetcher.searchPhotos(itemList, params[0],
+                            String.valueOf(mLocation.getLatitude()),
+                            String.valueOf(mLocation.getLongitude())
+                    );
+                } else {
+                    flickrFetcher.searchPhotos(itemList, params[0]);
                 }
+
+            } else {
+                flickrFetcher.getRecentPhotos(itemList);
             }
+
+            Log.d(TAG, "Fetcher task finished");
+            return itemList;
         }
 
         @Override
         protected void onPostExecute(List<GalleryItem> galleryItems) {
-                mAdapter = new PhotoGalleryAdapter(galleryItems);
-                mRecyclerView.setAdapter(mAdapter);
-        }
-
-        @Override
-        protected void onProgressUpdate(Void... values) {
-            super.onProgressUpdate(values);
+            mItems = galleryItems;
+            mRecyclerView.setAdapter(new PhotoGalleryAdapter(mItems));
 
             String formatString = getResources().getString(R.string.photo_progress_loaded);
             Snackbar.make(mRecyclerView, formatString, Snackbar.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        super.onCreateOptionsMenu(menu, inflater);
-        inflater.inflate(R.menu.menu_main, menu);
-
-        MenuItem menuItem = menu.findItem(R.id.menu_search);
-        final SearchView searchView = (SearchView) menuItem.getActionView();
-
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                Log.d(TAG, "Query text submitted: " + query);
-                mSearchKey = query;
-                loadPhotos();
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                Log.d(TAG, "Query text submitted: " + newText);
-                return false;
-            }
-
-        });
-
-        searchView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                searchView.setQuery(mSearchKey, false);
-            }
-        });
-
-        // render polling
-        MenuItem mnuPolling = menu.findItem(R.id.menu_toggle_polling);
-        if(PollService.isServiceAlarmOn(getActivity())){
-            mnuPolling.setTitle(R.string.stop_polling);
-        } else {
-            mnuPolling.setTitle(R.string.start_polling);
-        }
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()){
-            case R.id.menu_reload:
-                loadPhotos();
-                return true;
-            case R.id.menu_clear_search:
-                mSearchKey = null;
-                loadPhotos();
-                return true;
-            case R.id.menu_toggle_polling:
-                boolean shouldStart = !PollService.isServiceAlarmOn(getActivity());
-                Log.d(TAG, ((shouldStart) ? "Start" : "Stop") + "Intent service");
-                PollService.setServiceAlarm(getActivity(), shouldStart);
-                getActivity().invalidateOptionsMenu(); //refresh menu
-                return true;
-
-            case R.id.menu_manual_check:
-                Intent pollIntent = PollService.newIntent(getActivity());
-                getActivity().startService(pollIntent);
-                return true;
-
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    public static class ImageViewDialog extends DialogFragment{
-
-    private static final String ARG_BITMAP = "ARG BITMAP";
-
-    public static ImageViewDialog getInstance(Bitmap bitmap) {
-
-        Bundle bundle = new Bundle();
-        bundle.putParcelable(ARG_BITMAP, bitmap);
-
-        ImageViewDialog dialogFragment = new ImageViewDialog();
-        dialogFragment.setArguments(bundle);
-        return dialogFragment;
-    }
-
-    @NonNull
-    @Override
-    public Dialog onCreateDialog(Bundle savedInstanceState) {
-        Bitmap bmp = getArguments().getParcelable(ARG_BITMAP);
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-
-        ImageView imgView = new ImageView(getActivity());
-        imgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        imgView.setImageDrawable(new BitmapDrawable(getResources(), bmp));
-
-        builder.setView(imgView);
-        builder.setPositiveButton("Close", null);
-        return builder.create();
-
+            mFetcherTask = null;
         }
     }
 }

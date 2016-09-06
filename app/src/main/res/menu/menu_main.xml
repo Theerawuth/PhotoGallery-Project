@@ -29,4 +29,9 @@
 
     </item>
 
+    <item
+        android:id="@+id/menu_setting"
+        android:title="@string/photo_setting"
+        android:showAsAction="never"/>
+
 </menu>

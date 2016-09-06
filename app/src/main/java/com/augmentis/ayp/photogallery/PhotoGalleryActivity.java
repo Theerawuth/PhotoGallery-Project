@@ -8,11 +8,10 @@ public class PhotoGalleryActivity extends SingleFragmentActivity {
 
     @Override
     protected Fragment onCreateFragment() {
-
         return PhotoGalleryFragment.newInstance();
     }
 
-    public static  Intent newIntent(Context ctx){
+    public static Intent newIntent(Context ctx) {
         return new Intent(ctx, PhotoGalleryActivity.class);
     }
 }

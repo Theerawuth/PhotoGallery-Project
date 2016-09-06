@@ -4,22 +4,26 @@ import android.content.Context;
 import android.os.PowerManager;
 
 /**
- * Created by Theerawuth on 8/23/2016.
+ * Created by theerawuth on 23-Aug-16.
  */
+
 public class Screen {
-    private final String SCREEN_CLASS_TAG = "SCREEN";
+    private static final String SCREEN_CLASS_TAG = "SCREEN";
 
-    public Screen(){
+    public Screen() {}
 
-    }
-
-    public void on(Context context){
+    public void on(Context context) {
         PowerManager powerManager =
-                (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                (PowerManager)
+                        context.getSystemService(Context.POWER_SERVICE);
 
-        if(!powerManager.isScreenOn()){
-            PowerManager.WakeLock wl = powerManager.newWakeLock(PowerManager.ON_AFTER_RELEASE, SCREEN_CLASS_TAG) ;
+        if(!powerManager.isScreenOn()) {
+            PowerManager.WakeLock wl = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK |
+                            PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
+                    SCREEN_CLASS_TAG);
+
             wl.acquire();
+            wl.release();
         }
     }
 }

@@ -4,6 +4,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,10 +14,12 @@ import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 
 /**
- * Created by Theerawuth on 8/29/2016.
+ * Created by theerawuth on 29-Aug-16.
  */
+
 public class PhotoPageFragment extends VisibleFragment {
 
+    private static final String TAG = "PhotoPageFragment";
     private static final String KEY_URI = "KEY_URI";
 
     private Uri mUri;
@@ -24,7 +27,6 @@ public class PhotoPageFragment extends VisibleFragment {
     private ProgressBar mProgressBar;
 
     public static PhotoPageFragment newInstance(Uri uri) {
-
         Bundle args = new Bundle();
         args.putParcelable(KEY_URI, uri);
 
@@ -37,27 +39,28 @@ public class PhotoPageFragment extends VisibleFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if(getArguments() != null){
+        if(getArguments() != null) {
             mUri = getArguments().getParcelable(KEY_URI);
         }
     }
 
     @Nullable
     @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
 
         View v = inflater.inflate(R.layout.fragment_photo_page, container, false);
 
         mProgressBar = (ProgressBar) v.findViewById(R.id.fragment_photo_web_progress);
-        mProgressBar.setMax(100); // เซตจำนวนเต็มคือ 100
-
+        mProgressBar.setMax(100);
 
         mWebView = (WebView) v.findViewById(R.id.fragment_photo_web_view);
         mWebView.getSettings().setJavaScriptEnabled(true);
         mWebView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
-                if( newProgress == 100) {
+                Log.d(TAG, "New progress : " + newProgress);
+                if( newProgress == 100 ) {
                     mProgressBar.setVisibility(View.GONE);
                 } else {
                     mProgressBar.setVisibility(View.VISIBLE);
@@ -71,17 +74,16 @@ public class PhotoPageFragment extends VisibleFragment {
                 appCompatActivity.getSupportActionBar().setSubtitle(title);
             }
         });
-
-        mWebView.setWebViewClient(new WebViewClient(){
+        mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return false;
             }
-        });
 
+        });
         mWebView.loadUrl(mUri.toString());
 
         return v;
-
     }
 }
+

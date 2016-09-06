@@ -6,12 +6,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v4.app.NotificationManagerCompat;
-import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 
 public class NotificationReceiver extends BroadcastReceiver {
-
-
     private static final String TAG = "NotificationReceiver";
 
     public NotificationReceiver() {
@@ -22,7 +19,7 @@ public class NotificationReceiver extends BroadcastReceiver {
         Log.i(TAG, "Notification calling");
 
         //
-        if(getResultCode() != Activity.RESULT_OK){
+        if(getResultCode() != Activity.RESULT_OK) {
             return;
         }
 
@@ -33,6 +30,6 @@ public class NotificationReceiver extends BroadcastReceiver {
 
         NotificationManagerCompat.from(context).notify(requestCode, notification);
 
-        Log.i(TAG, "Notify new item display");
+        Log.i(TAG, "Notify new item displayed! ");
     }
 }

@@ -13,13 +13,11 @@ public class PollStarterReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d(TAG, "Receiver booties call");
+        Log.d(TAG, "Receive booties call");
 
         Boolean isOn = PhotoGalleryPreference.getStoredIsAlarmOn(context);
         PollService.setServiceAlarm(context, isOn);
 
         Log.d(TAG, "Status of service alarm is : " + isOn);
-
     }
-
 }
