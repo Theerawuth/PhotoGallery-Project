@@ -11,6 +11,7 @@ import android.util.Log;
 public class NotificationReceiver extends BroadcastReceiver {
     private static final String TAG = "NotificationReceiver";
 
+    // NotificationReceiver
     public NotificationReceiver() {
     }
 
