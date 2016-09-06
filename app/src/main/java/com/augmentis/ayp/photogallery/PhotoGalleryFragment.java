@@ -32,6 +32,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -496,13 +497,16 @@ public class PhotoGalleryFragment extends VisibleFragment {
             holder.bindGalleryItem(galleryItem);
             holder.bindDrawable(smileyDrawable);
 
-            if(mMemoryCache.get(galleryItem.getUrl()) != null) {
-                Bitmap bitmap = mMemoryCache.get(galleryItem.getUrl());
-                holder.bindDrawable(new BitmapDrawable(getResources(), bitmap));
-            } else {
-                //
-                mThumbnailDownloaderThread.queueThumbnailDownload(holder, galleryItem.getUrl());
-            }
+            //use Glide getUrl and bind Photos
+            Glide.with(getActivity()).load(galleryItem.getUrl()).into(holder.mPhoto);
+
+//            if(mMemoryCache.get(galleryItem.getUrl()) != null) {
+//                Bitmap bitmap = mMemoryCache.get(galleryItem.getUrl());
+//                holder.bindDrawable(new BitmapDrawable(getResources(), bitmap));
+//            } else {
+//                //
+//                mThumbnailDownloaderThread.queueThumbnailDownload(holder, galleryItem.getUrl());
+//            }
         }
 
         @Override

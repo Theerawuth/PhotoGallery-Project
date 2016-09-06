@@ -7,6 +7,9 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.animation.GlideAnimation;
+import com.bumptech.glide.request.target.SimpleTarget;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -73,8 +76,15 @@ public class PhotoMapFragment extends SupportMapFragment {
                 if(mUrl == null) {
                     updateMapUI();
                 } else {
-                    mFetcherTask = new MarkerFetcherTask();
-                    mFetcherTask.execute(mUrl);
+//                    mFetcherTask = new MarkerFetcherTask();
+//                    mFetcherTask.execute(mUrl);
+                    Glide.with(getActivity()).load(mUrl).asBitmap().into(new SimpleTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(Bitmap resource, GlideAnimation<? super Bitmap> glideAnimation) {
+                            mBitmap = resource;
+                            updateMapUI();
+                        }
+                    });
                 }
             }
         });
